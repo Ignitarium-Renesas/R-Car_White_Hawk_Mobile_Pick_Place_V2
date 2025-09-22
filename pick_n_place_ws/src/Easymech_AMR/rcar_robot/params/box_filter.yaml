@@ -6,10 +6,10 @@ scan_to_scan_filter_chain:
       params:
         box_frame: base_scan
         max_x: 0.20
-        max_y: 0.35
+        max_y: 0.21
         max_z: 0.5
-        min_x: -0.40
-        min_y: -0.35
+        min_x: -0.35
+        min_y: -0.22
         min_z: -0.5
         
         invert: false # activate to remove all points outside of the box

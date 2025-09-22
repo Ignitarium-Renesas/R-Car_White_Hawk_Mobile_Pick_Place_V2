@@ -1,0 +1,10 @@
+/global_costmap/global_costmap:
+  inflation_layer.inflation_radius: 0.55
+
+/local_costmap/local_costmap:
+  inflation_layer.inflation_radius: 1
+ 
+
+/controller_server:
+  FollowPath.max_vel_x: 0.22
+  FollowPath.max_vel_theta: 1.5

@@ -3,22 +3,24 @@ from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Imu, MagneticField
 from std_msgs.msg import Header
-from encoder_msgs.msg import EncoderData  # Ensure this is your custom message
+from encoder_msgs.msg import EncoderData  # Custom message
 import serial
 import time
 import re
 from math import pi
+import math
 
 
 class UnifiedRobotNode(Node):
     def __init__(self):
-        super().__init__("unified_robot_node")
+        super().__init__("base_driver_node")
 
         # Parameters
         self.declare_parameter("port", "/dev/ttyUSB0")
         self.declare_parameter("baudrate", 115200)
         self.wheel_separation = 0.5
-        self.max_motor_speed = 500
+        self.max_motor_rpm = 60  # Max motor speed (adjust as needed) in RPM
+        self.wheel_rad = 0.0508  #meter
 
         port = self.get_parameter("port").get_parameter_value().string_value
         baudrate = self.get_parameter("baudrate").get_parameter_value().integer_value
@@ -31,8 +33,14 @@ class UnifiedRobotNode(Node):
             return
 
         self.last_cmd_time = time.time()
+        self.last_serial_time = time.time()
+        self.timeout_seconds = 0.3
 
-        # Subscriptions and publishers
+        # Track previous motor speeds
+        self.prev_left_motor_speed = None
+        self.prev_right_motor_speed = None
+
+        # ROS interfaces
         self.subscription = self.create_subscription(
             Twist, "cmd_vel", self.cmd_vel_callback, 10
         )
@@ -50,42 +58,52 @@ class UnifiedRobotNode(Node):
         self.last_cmd_time = time.time()
 
         linear_x = msg.linear.x
-        if -0.015 < linear_x < 0:
-            linear_x = -0.015
-        elif 0 < linear_x < 0.015:
-            linear_x = 0.015
-
         angular_z = msg.angular.z
 
         left_speed = linear_x - (angular_z * self.wheel_separation / 2)
         right_speed = linear_x + (angular_z * self.wheel_separation / 2)
 
-        left_motor_speed = int(left_speed * 359)
-        right_motor_speed = int(right_speed * 359)
+        # Scale speed to motor range
+        left_motor_rpm = float(left_speed * 60) / (2 * math.pi * self.wheel_rad)
+        right_motor_rpm = float(right_speed * 60) / (2 * math.pi * self.wheel_rad)
 
-        left_motor_speed = max(
-            -self.max_motor_speed, min(self.max_motor_speed, left_motor_speed)
-        )
-        right_motor_speed = max(
-            -self.max_motor_speed, min(self.max_motor_speed, right_motor_speed)
-        )
+        left_motor_rpm = max(-self.max_motor_rpm, min(self.max_motor_rpm, left_motor_rpm))
+        right_motor_rpm = max(-self.max_motor_rpm, min(self.max_motor_rpm, right_motor_rpm))
 
-        command = f"$FR:{right_motor_speed},FL:{left_motor_speed},BR:{right_motor_speed},BL:{left_motor_speed}#"
-        self.serial_port.write(command.encode())
-        self.get_logger().info(f"Sent command: {command.strip()}")
+        self.get_logger().info(f"left_motor_rpm {left_motor_rpm}")
+        self.get_logger().info(f"right_motor_rpm {right_motor_rpm}")
+
+        if (
+            self.prev_left_motor_speed != left_motor_rpm or
+            self.prev_right_motor_speed != right_motor_rpm
+        ):
+            command = f"$FR:{right_motor_rpm},FL:{left_motor_rpm},BR:{right_motor_rpm},BL:{left_motor_rpm}#"
+            self.serial_port.write(command.encode())
+            self.get_logger().info(f"Sent command: {command.strip()}")
+
+            self.prev_left_motor_speed = left_motor_rpm
+            self.prev_right_motor_speed = right_motor_rpm
 
     def read_and_publish(self):
-        if self.serial_port.in_waiting > 0:
-            raw_line = (
-                self.serial_port.readline().decode("utf-8", errors="ignore").strip()
-            )
-            match = self.pattern.match(raw_line)
+        latest_valid_line = None
 
+        # Drain the serial buffer and keep the last valid line
+        while self.serial_port.in_waiting > 0:
+            try:
+                line = self.serial_port.readline().decode("utf-8", errors="ignore").strip()
+                if self.pattern.match(line):
+                    latest_valid_line = line
+            except Exception as e:
+                self.get_logger().warn(f"Serial read error: {e}")
+
+        # If a valid line was found, parse and publish
+        if latest_valid_line:
+            match = self.pattern.match(latest_valid_line)
             if match:
                 try:
-                    fr, fl, br, bl, ax, ay, az, gx, gy, gz, mx, my, mz, temp = map(
-                        float, match.groups()
-                    )
+                    self.last_serial_time = time.time()
+
+                    fr, fl, br, bl, ax, ay, az, gx, gy, gz, mx, my, mz, temp = map(float, match.groups())
 
                     # Publish Encoder Data
                     enc_msg = EncoderData()
@@ -108,7 +126,7 @@ class UnifiedRobotNode(Node):
                     imu_msg.angular_velocity.x = gx * pi / 180.0
                     imu_msg.angular_velocity.y = gy * pi / 180.0
                     imu_msg.angular_velocity.z = gz * pi / 180.0
-                    imu_msg.orientation_covariance[0] = -1
+                    imu_msg.orientation_covariance[0] = -1.0
                     self.imu_pub.publish(imu_msg)
 
                     # Publish Magnetometer
@@ -121,10 +139,10 @@ class UnifiedRobotNode(Node):
 
                 except Exception as e:
                     self.get_logger().error(f"Error while parsing values: {e}")
-            else:
-                self.get_logger().warn(
-                    f"Serial line did not match expected format: '{raw_line}'"
-                )
+        else:
+            # No valid line found — stale
+            if time.time() - self.last_serial_time > self.timeout_seconds:
+                self.get_logger().warn("No fresh serial data. Skipping publish.")
 
     def destroy_node(self):
         if self.serial_port.is_open:
