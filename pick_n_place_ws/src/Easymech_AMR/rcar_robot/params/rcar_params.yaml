@@ -1,11 +1,11 @@
 amcl:
   ros__parameters:
     use_sim_time: False
-    alpha1: 0.3  #0.03
-    alpha2: 0.3
-    alpha3: 0.3
-    alpha4: 0.3
-    alpha5: 0.3
+    alpha1: 0.2  #0.03
+    alpha2: 0.2
+    alpha3: 0.2
+    alpha4: 0.2
+    alpha5: 0.2
     always_reset_initial_pose: false
     base_frame_id: base_footprint
     beam_skip_distance: 0.5
@@ -20,12 +20,12 @@ amcl:
       yaw: 0.0
       z: 0.0
     lambda_short: 0.1
-    laser_likelihood_max_dist: 4.0
-    laser_max_range: 100.0
-    laser_min_range: 0.0
-    laser_model_type: beam
+    laser_likelihood_max_dist: 2.0  # Reduced from 4.0 for better accuracy
+    laser_max_range: 10.0           # Reduced from 100.0 for practical range
+    laser_min_range: 0.1            # Increased from 0.0 to avoid noise
+    laser_model_type: likelihood_field
     map_topic: map
-    max_beams: 120
+    max_beams: 120                  # Reduced from 240 for faster processing
     max_particles: 2000
     min_particles: 500
     odom_frame_id: odom
@@ -38,20 +38,20 @@ amcl:
           durability: volatile
           history: keep_last
           reliability: reliable
-    recovery_alpha_fast: 0.0
-    recovery_alpha_slow: 0.0
+    recovery_alpha_fast: 0.1
+    recovery_alpha_slow: 0.001
     resample_interval: 1
     robot_model_type: nav2_amcl::DifferentialMotionModel
-    save_pose_rate: 0.2
+    save_pose_rate: 0.1
     scan_topic: scan
     set_initial_pose: false
-    sigma_hit: 0.1
+    sigma_hit: 0.05                 # Reduced from 0.1 for better precision
     tf_broadcast: true
-    transform_tolerance: 1.2
-    update_min_a: 0.1
-    update_min_d: 0.1
+    transform_tolerance: 0.2  # Reduced from 1.2 for faster corrections
+    update_min_a: 0.05       # Reduced from 0.1 for more frequent rotational updates
+    update_min_d: 0.05       # Reduced from 0.1 for more frequent translational updates
     use_sim_time: false
-    z_hit: 1.2
+    z_hit: 0.9
     z_max: 0.05
     z_rand: 0.5
     z_short: 0.05
@@ -116,6 +116,7 @@ bt_navigator:
     - nav2_back_up_cancel_bt_node
     - nav2_assisted_teleop_cancel_bt_node
     - nav2_drive_on_heading_cancel_bt_node
+#   - nav2_spin_action_bt_node
 
 bt_navigator_navigate_through_poses_rclcpp_node:
   ros__parameters:
@@ -157,8 +158,8 @@ controller_server:
       vx_std: 0.4
       vy_std: 0.4
       wz_std: 0.5
-      vx_max: 0.25
-      vx_min: -0.25 #-4.0
+      vx_max: 0.30
+      vx_min: -0.30 #-4.0
       vy_max: 0.0
       wz_max: 1.0
       iteration_count: 1
@@ -203,7 +204,7 @@ controller_server:
         collision_cost: 10000.0
         collision_margin_distance: 0.2 #2
         near_goal_distance: 0.20
-        inflation_radius: 0.35 # (only in Humble)
+        inflation_radius: 0.30 # (only in Humble)
         cost_scaling_factor: 10.0 # (only in Humble)
       PathAlignCritic:
         enabled: true
@@ -247,7 +248,7 @@ local_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0
-        inflation_radius: 0.35
+        inflation_radius: 0.30
       voxel_layer:
         plugin: "nav2_costmap_2d::VoxelLayer"
         enabled: True
@@ -296,9 +297,9 @@ global_costmap:
           clearing: True
           marking: True
           data_type: "LaserScan"
-          raytrace_max_range: 3.0
+          raytrace_max_range: 5.0
           raytrace_min_range: 0.0
-          obstacle_max_range: 2.5
+          obstacle_max_range: 3.0
           obstacle_min_range: 0.0
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
@@ -306,7 +307,7 @@ global_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 5.0
-        inflation_radius: 0.35
+        inflation_radius: 0.30
       always_send_full_costmap: True
 
 map_server:
@@ -386,3 +387,17 @@ waypoint_follower:
       enabled: True
       waypoint_pause_duration: 200
 
+# velocity_smoother:
+#   ros__parameters:
+#     use_sim_time: False
+#     smoothing_frequency: 30.0
+#     scale_velocities: False
+#     feedback: "CLOSED_LOOP"
+#     max_velocity: [1.5, 0.0, 1.5]
+#     min_velocity: [-1.5, 0.0, -1.5]
+#     max_accel: [0.5, 0.0, 1.0]
+#     max_decel: [-0.7, 0.0, -1.5] 
+#     odom_topic: "odom_base"
+#     odom_duration: 0.1
+#     deadband_velocity: [0.01, 0.0, 0.01]
+#     velocity_timeout: 3.0
