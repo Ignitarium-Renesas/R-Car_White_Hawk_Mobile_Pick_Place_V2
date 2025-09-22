@@ -19,20 +19,20 @@ The **Mobile Pick and Place** project involves a robotic arm mounted on an Auton
 
 ### 1.Clone Repository
 ```sh
-git clone https://github.com/Ignitarium-Renesas/R-Car_Mobile_Pick_Place_V2.git
+git clone https://github.com/Ignitarium-Renesas/R-Car_White_Hawk_Mobile_Pick_Place_V2.git
 ```
 ### 2. Install Requirements
 ```sh
-cd R-Car_Mobile_Pick_Place_V2/pick_n_place_ws/
+cd R-Car_White_Hawk_Mobile_Pick_Place_V2/pick_n_place_ws/
 pip install -r src/pose_estimation_pkg/requirements.txt 
 pip install pymycobot --upgrade 
 
-cd R-Car_Mobile_Pick_Place_V2/pick_n_place_ws/src/Project-Rover-Robot
+cd R-Car_White_Hawk_Mobile_Pick_Place_V2/pick_n_place_ws/src/Project-Rover-Robot
 npm i 
 ```
 ### 3. Build the Workspace
 ```sh
-cd R-Car_Mobile_Pick_Place_V2/pick_n_place_ws
+cd R-Car_White_Hawk_Mobile_Pick_Place_V2/pick_n_place_ws
 colcon build
 ```
 ### 4. Flash the AMR code into Arduino
@@ -98,7 +98,7 @@ docker exec -it rcar bash
 
 #run navigation modules:Bringup 
 
-ros2 launch rcar_robot base_bringup.launch.py 
+ros2 launch rcar_robot rcar_bringup.launch.py 
 ```
 ### Step 8: Launch Navigation
 ```bash
@@ -115,7 +115,7 @@ Ros2 launch rcar_robot rcar_navigation.launch.py
 
 ### Step 9: Launch GUI & Start Demo
 ```bash
-cd R-Car_Mobile_Pick_Place_V2/pick_n_place_ws/src/mycobot280/Project-Rover-Robot/ 
+cd R-Car_White_Hawk_Mobile_Pick_Place_V2/pick_n_place_ws/src/mycobot280/Project-Rover-Robot/ 
 node index.js 
  
 #Open a Browser and in search tab type: 
